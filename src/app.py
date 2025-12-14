@@ -155,26 +155,43 @@ def validate_ws_token(token):
 
 
 def is_real_serial_port(device_path):
-    """Check if a serial port is real hardware (not a virtual ttyS port)."""
+    """Check if a serial port is real hardware (not a virtual ttyS port).
+
+    Detects:
+    - USB serial adapters (ttyUSB*, ttyACM*)
+    - Physical serial ports with hardware backing
+    - VirtualBox UART passthrough ports (emulated 16550A)
+    """
     import os
 
     # ttyUSB and ttyACM are always real (USB serial adapters)
     if 'ttyUSB' in device_path or 'ttyACM' in device_path:
         return True
 
+    device_name = os.path.basename(device_path)
+
     # For ttyS ports, check if there's actual hardware
     # Real hardware ports have a device symlink in /sys/class/tty/
-    device_name = os.path.basename(device_path)
     sys_path = f'/sys/class/tty/{device_name}/device'
-
     if os.path.exists(sys_path):
         return True
 
-    # Alternative: check if the port type indicates real hardware
-    # by looking at the port's driver
-    driver_path = f'/sys/class/tty/{device_name}/device/driver'
-    if os.path.exists(driver_path):
-        return True
+    # Check /proc/tty/driver/serial for active 8250 UART ports
+    # VirtualBox UART passthrough shows as "uart:16550A" with a real I/O port
+    # Virtual/unused ports show as "uart:unknown" with port 0
+    try:
+        if device_name.startswith('ttyS'):
+            port_num = int(device_name[4:])
+            with open('/proc/tty/driver/serial', 'r') as f:
+                for line in f:
+                    # Format: "0: uart:16550A port:000003F8 irq:4 ..."
+                    if line.startswith(f'{port_num}:'):
+                        # Check if it's a real UART (not "unknown") with a real port
+                        if 'uart:unknown' not in line and 'port:00000000' not in line:
+                            return True
+                        break
+    except (FileNotFoundError, PermissionError, ValueError):
+        pass
 
     return False
 
