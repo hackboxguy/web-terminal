@@ -199,7 +199,10 @@ def is_real_serial_port(device_path):
 def list_serial_devices():
     """List available serial devices."""
     devices = []
+    seen_paths = set()
+
     try:
+        # First, get devices from pyserial (mainly USB serial adapters)
         ports = serial.tools.list_ports.comports()
         for port in ports:
             # Filter out virtual ttyS ports
@@ -211,8 +214,28 @@ def list_serial_devices():
                 'description': port.description or port.device,
                 'hwid': port.hwid or ''
             })
+            seen_paths.add(port.device)
     except Exception as e:
-        logger.error(f"Failed to list serial devices: {e}")
+        logger.error(f"Failed to list serial devices via pyserial: {e}")
+
+    # Also scan for ttyS ports that pyserial might miss (8250 UARTs)
+    # This catches VirtualBox UART passthrough and native serial ports
+    try:
+        import glob
+        for tty_path in sorted(glob.glob('/dev/ttyS[0-9]*')):
+            if tty_path in seen_paths:
+                continue
+            if is_real_serial_port(tty_path):
+                # Get port number for description
+                port_num = tty_path.replace('/dev/ttyS', '')
+                devices.append({
+                    'path': tty_path,
+                    'description': f'Serial Port COM{int(port_num)+1}',
+                    'hwid': 'n/a'
+                })
+                seen_paths.add(tty_path)
+    except Exception as e:
+        logger.error(f"Failed to scan ttyS ports: {e}")
 
     # Sort by device path
     devices.sort(key=lambda x: x['path'])
