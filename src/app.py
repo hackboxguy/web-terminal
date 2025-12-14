@@ -154,12 +154,41 @@ def validate_ws_token(token):
         return False
 
 
+def is_real_serial_port(device_path):
+    """Check if a serial port is real hardware (not a virtual ttyS port)."""
+    import os
+
+    # ttyUSB and ttyACM are always real (USB serial adapters)
+    if 'ttyUSB' in device_path or 'ttyACM' in device_path:
+        return True
+
+    # For ttyS ports, check if there's actual hardware
+    # Real hardware ports have a device symlink in /sys/class/tty/
+    device_name = os.path.basename(device_path)
+    sys_path = f'/sys/class/tty/{device_name}/device'
+
+    if os.path.exists(sys_path):
+        return True
+
+    # Alternative: check if the port type indicates real hardware
+    # by looking at the port's driver
+    driver_path = f'/sys/class/tty/{device_name}/device/driver'
+    if os.path.exists(driver_path):
+        return True
+
+    return False
+
+
 def list_serial_devices():
     """List available serial devices."""
     devices = []
     try:
         ports = serial.tools.list_ports.comports()
         for port in ports:
+            # Filter out virtual ttyS ports
+            if not is_real_serial_port(port.device):
+                continue
+
             devices.append({
                 'path': port.device,
                 'description': port.description or port.device,

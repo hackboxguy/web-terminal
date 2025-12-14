@@ -26,10 +26,11 @@
     let isConnected = false;
     let isConnecting = false;
     let devicePollInterval = null;
+    let wsConnected = false;  // WebSocket connection state (separate from serial)
 
     // Configuration
     const DEVICE_POLL_INTERVAL = 3000; // 3 seconds
-    const WS_RECONNECT_DELAY = 1000;
+    const WS_RECONNECT_DELAY = 3000;   // 3 seconds
 
     /**
      * Get base path for API calls (works with both direct and proxied access)
@@ -178,6 +179,7 @@
 
         ws.onopen = () => {
             console.log('WebSocket connected');
+            wsConnected = true;
             // Request device list
             ws.send(JSON.stringify({ type: 'list_devices' }));
         };
@@ -199,11 +201,17 @@
 
         ws.onerror = (error) => {
             console.error('WebSocket error:', error);
-            terminal.writeln('\x1b[31mWebSocket error\x1b[0m');
+            // Only show error in terminal if we were connected to a serial device
+            if (isConnected) {
+                terminal.writeln('\x1b[31mWebSocket error\x1b[0m');
+            }
         };
 
         ws.onclose = () => {
             console.log('WebSocket closed');
+            const wasConnectedToDevice = isConnected;
+            wsConnected = false;
+
             if (isConnected) {
                 updateStatus('disconnected');
                 isConnected = false;
@@ -211,7 +219,7 @@
                 terminal.writeln('\x1b[31m\r\n=== Connection lost ===\x1b[0m');
             }
 
-            // Reconnect after delay
+            // Reconnect after delay (silently in background)
             setTimeout(() => {
                 if (!ws || ws.readyState === WebSocket.CLOSED) {
                     connectWebSocket();
