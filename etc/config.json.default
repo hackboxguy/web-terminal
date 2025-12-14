@@ -1,0 +1,12 @@
+{
+  "last_device": "",
+  "last_baudrate": 115200,
+  "terminal": {
+    "font_size": 14,
+    "font_family": "monospace",
+    "cursor_blink": true,
+    "scrollback": 1000
+  },
+  "local_echo": false,
+  "auth_required": true
+}

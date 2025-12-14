@@ -1,0 +1,54 @@
+{
+  "name": "@PROJECT_NAME@",
+  "version": "@PROJECT_VERSION@",
+  "description": "Web Serial Terminal",
+  "type": "webapp",
+  "port": 8003,
+  "url": "/",
+
+  "health": {
+    "type": "http",
+    "endpoint": "/health",
+    "port": 8003,
+    "interval": 10,
+    "timeout": 5,
+    "expected_status": 200
+  },
+
+  "startup": {
+    "command": "/app/@PROJECT_NAME@/bin/web-terminal-server",
+    "args": ["--config", "/data/app-config/@PROJECT_NAME@/config.json"],
+    "working_dir": "/app/@PROJECT_NAME@",
+    "priority": 26,
+    "depends_on": []
+  },
+
+  "shutdown": {
+    "timeout": 10,
+    "signal": "SIGTERM"
+  },
+
+  "data_dirs": [
+    "cache"
+  ],
+
+  "config_files": [
+    {
+      "source": "etc/config.json.default",
+      "dest": "config.json"
+    }
+  ],
+
+  "env": {
+    "APP_DATA_DIR": "/data/app-data/@PROJECT_NAME@",
+    "APP_CONFIG_DIR": "/data/app-config/@PROJECT_NAME@",
+    "APP_LOG_FILE": "/var/log/app/@PROJECT_NAME@.log"
+  },
+
+  "logging": {
+    "file": "/var/log/app/@PROJECT_NAME@.log",
+    "syslog_tag": "app.@PROJECT_NAME@",
+    "max_size_mb": 5,
+    "rotate_count": 3
+  }
+}
