@@ -69,7 +69,7 @@ sock = Sock(app)
 
 
 def setup_logging():
-    """Configure logging to file and console."""
+    """Configure logging to file (preferred) or console (fallback)."""
     log_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
 
     log_dir = os.path.dirname(APP_LOG_FILE)
@@ -79,12 +79,13 @@ def setup_logging():
         except Exception:
             pass
 
-    handlers = [logging.StreamHandler(sys.stdout)]
-
+    # Prefer file logging to avoid duplicates when stdout is also captured
+    handlers = []
     try:
         handlers.append(logging.FileHandler(APP_LOG_FILE))
     except Exception:
-        pass
+        # Fall back to stdout only if file logging fails
+        handlers.append(logging.StreamHandler(sys.stdout))
 
     logging.basicConfig(
         level=logging.INFO,
