@@ -330,6 +330,7 @@ def websocket_handler(ws):
 
     def serial_reader():
         """Read from serial port and send to WebSocket."""
+        global serial_connection
         nonlocal connected_device
         while not stop_reader.is_set():
             try:

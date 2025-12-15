@@ -42,12 +42,24 @@
 
     /**
      * Get WebSocket URL
+     * When accessed via proxy (/app/web-terminal/), connect directly to port 8003
+     * since most HTTP proxies don't support WebSocket upgrade
      */
     function getWebSocketUrl(token) {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
-        const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
-        let wsUrl = `${protocol}//${host}:${port}${getBasePath()}ws`;
+        const path = window.location.pathname;
+
+        let wsUrl;
+        if (path.includes('/app/web-terminal')) {
+            // Accessed via system-mgmt proxy - connect directly to web-terminal port
+            wsUrl = `${protocol}//${host}:8003/ws`;
+        } else {
+            // Direct access - use same host:port
+            const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+            wsUrl = `${protocol}//${host}:${port}/ws`;
+        }
+
         if (token) {
             wsUrl += `?token=${token}`;
         }
@@ -147,11 +159,33 @@
     }
 
     /**
-     * Fetch auth token from system-mgmt
+     * Get auth token - either from URL query parameter or fetch from system-mgmt
+     * When opened from system-mgmt home page, token is passed in URL
      */
     async function getAuthToken() {
+        // First check if token is in URL (passed from system-mgmt home page)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get('token');
+        if (urlToken) {
+            console.log('Using token from URL');
+            return urlToken;
+        }
+
+        // Otherwise try to fetch from system-mgmt
         try {
-            const response = await fetch('/api/session/token', { method: 'POST' });
+            const path = window.location.pathname;
+            let tokenUrl;
+
+            if (path.includes('/app/web-terminal')) {
+                // Via proxy - use relative URL (goes through system-mgmt)
+                tokenUrl = '/api/session/token';
+            } else {
+                // Direct access - explicitly use system-mgmt port
+                const host = window.location.hostname;
+                tokenUrl = `http://${host}:8000/api/session/token`;
+            }
+
+            const response = await fetch(tokenUrl, { method: 'POST' });
             if (response.ok) {
                 const data = await response.json();
                 return data.token;
