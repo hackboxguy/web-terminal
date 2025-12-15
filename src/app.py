@@ -387,6 +387,10 @@ def websocket_handler(ws):
             # Try to parse as JSON control message
             try:
                 msg = json.loads(message)
+                # Must be a dict with 'type' field to be a control message
+                # (Raw terminal input like "2" is valid JSON but not a control msg)
+                if not isinstance(msg, dict):
+                    raise ValueError("Not a control message")
                 msg_type = msg.get('type')
 
                 if msg_type == 'connect':
@@ -478,7 +482,7 @@ def websocket_handler(ws):
                         'list': list_serial_devices()
                     }))
 
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, ValueError):
                 # Raw terminal input - send to serial port
                 if connected_device:
                     with serial_lock:
