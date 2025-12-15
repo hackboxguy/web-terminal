@@ -224,7 +224,16 @@
             // Try to parse as JSON (control message)
             try {
                 const msg = JSON.parse(data);
-                handleControlMessage(msg);
+                // Must be an object with 'type' to be a control message
+                // (Raw terminal data like "2" is valid JSON but not a control msg)
+                if (msg && typeof msg === 'object' && msg.type) {
+                    handleControlMessage(msg);
+                } else {
+                    // Valid JSON but not a control message - treat as terminal data
+                    if (isConnected) {
+                        terminal.write(data);
+                    }
+                }
             } catch (e) {
                 // Raw terminal data
                 if (isConnected) {
